@@ -1,28 +1,30 @@
 import os
 from flask import Flask, request
-from telegram import Bot, Update
-from telegram.ext import Dispatcher, CommandHandler, MessageHandler, Filters
+from telegram import Update, Bot
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 app = Flask(__name__)
-TOKEN = os.getenv('8461109289:AAGf5bE6uDLmu31IZeowBlpZwcevYxEMQyw')
+TOKEN = os.getenv('TELEGRAM_TOKEN')
 bot = Bot(token=TOKEN)
-dispatcher = Dispatcher(bot, None, use_context=True)
 
-# Command Handlers
-def start(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="🚀 Bot is alive!")
+# Initialize Application
+application = Application.builder().token(TOKEN).build()
 
-def echo(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text=f"You said: {update.message.text}")
+# Handlers
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="🚀 Bot is alive!")
+
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"You said: {update.message.text}")
 
 # Add handlers
-dispatcher.add_handler(CommandHandler('start', start))
-dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
+application.add_handler(CommandHandler("start", start))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
 @app.route('/webhook', methods=['POST'])
-def webhook():
-    update = Update.de_json(request.get_json(force=True), bot)
-    dispatcher.process_update(update)
+async def webhook():
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    await application.process_update(update)
     return 'ok'
 
 @app.route('/')
